@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+.env.*
+!.env.example
+*.local
+*.log
+.DS_Store
+coverage/
+.pytest_cache/
+.mypy_cache/
+client_secret_*.json

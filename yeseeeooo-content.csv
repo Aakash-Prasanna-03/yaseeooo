@@ -1,0 +1,4 @@
+id,agent,type,platform,status,preview
+d0d8f62a-7b4d-471c-8de6-cc3eb41b40b9,Sam,blog,wordpress,pending,"[quota-exhausted] Sam could not run on Gemini free tier right now. Try again in a minute or switch to a lighter/shorter request."
+ae8af76e-f9a2-4740-89c8-e02ea99ff15d,Sam,blog,wordpress,rejected,"[quota-exhausted] Sam could not run on Gemini free tier right now. Try again in a minute or switch to a lighter/shorter request.\n\n--- GEO Layer ---\n[quota-exhausted] Aria could not run on Gemini free "
+96c0f878-fe82-4651-a0bf-cafbf03efaf4,Sam,blog,wordpress,rejected,"[quota-exhausted] Sam could not run on Gemini free tier right now. Try again in a minute or switch to a lighter/shorter request."
