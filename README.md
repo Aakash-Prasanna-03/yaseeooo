@@ -1,76 +1,247 @@
 # yeseeeooo
 
-`yeseeeooo` is an AI content automation app for small teams.
-It helps a user:
+AI-powered content automation platform that helps teams turn brand context into planned, generated, reviewed, and publish-ready content.
 
-1. connect/sign in with Supabase auth,
-2. onboard a brand/workspace,
-3. crawl brand context,
-4. generate a content plan + drafts with multiple agents,
-5. review/approve and publish content,
-6. monitor activity and basic SEO/GEO signals.
+---
 
-## What this project includes
+## 1. Project Overview
 
-- `frontend/`: React + Vite single-page app (auth, onboarding, dashboard, reports)
-- `backend/`: FastAPI API + async/background task execution
-- `supabase/migrations/`: SQL schema/migration files for the app database
-- `supabase/scripts/`: utility SQL scripts (for example reset app data)
+`yeseeeooo` automates content operations for SEO/GEO-focused teams using an orchestrated multi-agent pipeline.
 
-## Current readiness
+### Main objective
 
-This repository is best treated as a **working MVP / early beta**.
+The project reduces manual effort in content planning, drafting, optimization, and publishing by combining:
 
-- Core product flow exists end-to-end (auth -> onboarding -> crawl -> agent generation -> approvals/publish).
-- Supabase-backed auth and Postgres integration are in place.
-- Background processing and SSE activity streaming are implemented.
-- Some integrations still have placeholder/demo behavior depending on configuration.
-- Use for internal testing/dev and pilot usage first; harden before production scale.
+- a guided frontend workflow,
+- backend APIs and async processing,
+- a graph-based agent pipeline,
+- local LLM reasoning through Ollama.
 
-## How it works
+### Real-world problem it solves
 
-### High-level architecture
+Most teams struggle with:
 
-- **Frontend (React/Vite):** user experience, route protection, Supabase session handling.
-- **Backend (FastAPI):** API endpoints for onboarding, crawl/cycle triggers, content and analytics.
-- **Agent pipeline (LangGraph):** multi-step content cycle (planning, writing, GEO layer, publishing, monitoring).
-- **Database (Supabase Postgres):** workspaces, brand profiles, drafts, logs, analytics entities.
-- **Redis/Celery:** async execution for crawl and content cycle jobs.
+- inconsistent content planning,
+- slow content production cycles,
+- lack of repeatable optimization workflows,
+- fragmented tools for writing, review, and execution.
 
-### Main user flow
+This system centralizes the process and runs it as a structured, repeatable flow.
 
-1. User signs in via Supabase.
-2. Frontend syncs identity to backend.
-3. User completes onboarding (`workspace` + brand context).
-4. Crawl runs and enriches brand profile memory.
-5. Agents create content plan and drafts.
-6. User approves/rejects drafts.
-7. Approved drafts publish through configured integrations.
-8. Dashboard/report pages read analytics/logs from backend APIs.
+### How users interact with the system
 
-## Quick start
+Users typically:
 
-### 1) Prerequisites
+1. sign in and create a workspace,
+2. provide business/brand details,
+3. trigger crawl and content generation workflows,
+4. review and approve drafts,
+5. track outcomes in dashboard and activity views.
+
+### End-to-end workflow summary
+
+User input from the UI is sent to FastAPI endpoints, which trigger LangGraph workflows.  
+LangGraph coordinates agent nodes built with LangChain.  
+LangChain calls locally hosted Ollama models for reasoning/generation.  
+Results are saved in Postgres and returned/streamed back to the frontend for display.
+
+---
+
+## 2. Key Features
+
+- **Brand onboarding workflow** for workspace-specific context capture.
+- **Crawl-triggered content readiness** before full generation cycles.
+- **Graph-orchestrated multi-agent pipeline** for planning, writing, optimization, and publishing.
+- **Agent-based content planning** (topic and platform-aware plan creation).
+- **Parallel draft generation** for faster throughput.
+- **Approval/rejection flow** for human-in-the-loop control.
+- **Activity streaming and logs** for visibility into agent actions.
+- **Analytics/reporting endpoints** for content and performance snapshots.
+- **Local LLM execution via Ollama** for privacy-friendly and offline-capable development.
+
+---
+
+## 3. Tech Stack
+
+### Core AI/Orchestration
+
+- **LangGraph**: workflow orchestration and state transitions across agent nodes.
+- **LangChain**: prompt construction, message handling, model abstraction, and tool-compatible pipelines.
+- **Ollama**: local model execution (`LLM_PROVIDER=ollama`), default env example uses `qwen2.5:7b` for both pro/flash tiers (can be switched to Mistral/LLaMA family models).
+
+### Application
+
+- **Backend**: FastAPI, async Python, asyncpg, Celery-compatible task flow.
+- **Frontend**: React + TypeScript + Vite.
+- **Data/Infra**: Postgres (Supabase-hosted or local), Redis for background job queueing, Docker for local services.
+
+---
+
+## 4. System Architecture
+
+At a high level, the system is split into:
+
+1. **Frontend application** (user input, workflow navigation, result presentation),
+2. **FastAPI backend** (request validation, orchestration triggers, persistence),
+3. **LangGraph workflow engine** (stateful node execution and transitions),
+4. **LangChain-powered agent layer** (prompting, reasoning, model invocation),
+5. **Ollama runtime** (local LLM responses),
+6. **Database + queue layer** (Postgres + Redis).
+
+### LangGraph workflow design
+
+LangGraph manages the content cycle as a directed workflow with nodes such as:
+
+- startup/context loading,
+- brand context resolution,
+- trend/content planning,
+- parallel writer execution,
+- review gate,
+- optimization layer,
+- publication and monitoring,
+- feedback/summary.
+
+Each node reads/writes structured workflow state, and conditional transitions control paths such as approval-required vs. auto-continue.
+
+### LangChain integration
+
+LangChain is used inside node logic to:
+
+- assemble agent-specific system/user prompts,
+- run role-based agent tasks,
+- normalize model outputs,
+- carry reasoning context per execution step.
+
+### Ollama local inference flow
+
+When `LLM_PROVIDER=ollama`, the backend invokes local models through LangChain's Ollama chat interface using:
+
+- `OLLAMA_BASE_URL` (default local service URL),
+- tiered model selection (`OLLAMA_PRO_MODEL`, `OLLAMA_FLASH_MODEL`).
+
+Model output is parsed, post-processed, and persisted as draft/content artifacts before API responses are returned.
+
+---
+
+## 5. Backend Details
+
+Backend code lives in `backend/` and is centered on FastAPI request handlers and workflow services.
+
+### Responsibilities
+
+- expose REST endpoints for auth sync, onboarding, crawl, content cycle, drafts, approvals, analytics, and activity;
+- validate user/workspace ownership and request payloads;
+- trigger async tasks for crawling and content cycles;
+- call LangGraph workflow services for orchestrated agent execution;
+- persist outputs into Postgres tables;
+- stream updates via SSE endpoints.
+
+### API and request handling
+
+The API layer:
+
+- receives frontend requests,
+- checks auth context,
+- maps requests to domain operations (e.g., run single agent, trigger cycle, approve draft),
+- returns structured JSON responses suitable for UI rendering.
+
+### LangGraph + LangChain + Ollama interaction
+
+In content-generation paths:
+
+1. endpoint/service starts workflow execution,
+2. LangGraph node functions run in sequence (or parallel where applicable),
+3. nodes call LangChain agents,
+4. LangChain invokes Ollama model locally,
+5. outputs are normalized and stored.
+
+### Data flow and response formatting
+
+Generated content, agent logs, cycle states, and analytics metrics are stored in Postgres and surfaced through typed JSON responses for the frontend.
+
+---
+
+## 6. Frontend Details
+
+Frontend code lives in `frontend/` and uses React + Vite for a route-based UI.
+
+### Structure
+
+- page-level routes for auth, onboarding, crawl waiting, reveal, dashboard, and reports;
+- API client abstraction for backend communication;
+- auth-aware route guarding for protected views;
+- state-driven rendering for loading, processing, success, and error states.
+
+### Backend communication
+
+The frontend sends JSON requests to FastAPI endpoints and attaches auth headers when sessions are available. It consumes:
+
+- synchronous JSON responses for standard operations,
+- stream/event updates for long-running workflow visibility.
+
+### User interaction flow
+
+1. **Input submission**: users submit onboarding/workspace/action requests.
+2. **Processing state**: UI shows in-progress states while backend workflows run.
+3. **Output display**: generated drafts, status updates, and analytics are rendered in dashboard/reporting screens.
+
+---
+
+## 7. End-to-End Workflow
+
+User Input -> Frontend -> Backend API -> LangGraph Workflow -> LangChain Agent -> Ollama Model -> Response -> Frontend Display
+
+Step-by-step:
+
+1. User enters request/context in the React UI.
+2. Frontend calls FastAPI endpoint.
+3. Backend validates request and loads workspace/brand context.
+4. Backend starts LangGraph workflow.
+5. Workflow nodes call LangChain agent logic.
+6. LangChain invokes local Ollama model for generation/reasoning.
+7. Node outputs are aggregated and persisted.
+8. Backend returns status/content payload to frontend.
+9. Frontend displays drafts, logs, and analytics for user action.
+
+---
+
+## 8. Installation & Setup
+
+### Prerequisites
 
 - Node.js 20+
 - Python 3.11+
-- Docker (optional, for local Postgres/Redis)
+- Docker (recommended for local Postgres/Redis)
+- Ollama installed locally
+
+### 1) Clone repository
+
+```bash
+git clone <your-repo-url>
+cd yeseeeooo
+```
 
 ### 2) Configure environment files
 
-Create environment files from examples:
+Create:
 
 - `backend/.env` from `backend/.env.example`
 - `frontend/.env.local` from `frontend/.env.example` (if present)
 
-Important backend variables:
+Set backend LLM config for local inference:
+
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_PRO_MODEL=qwen2.5:7b
+OLLAMA_FLASH_MODEL=qwen2.5:7b
+```
+
+Also configure:
 
 - `DATABASE_URL`
-- `SUPABASE_JWT_SECRET`
 - `REDIS_URL`
-- `LLM_PROVIDER` plus provider-specific API keys/models
-
-For hosted Supabase setup, migrations, and troubleshooting, see `SUPABASE_SETUP.md`.
+- `SUPABASE_JWT_SECRET`
 
 ### 3) Install dependencies
 
@@ -84,86 +255,71 @@ npm install
 Backend:
 
 ```bash
-cd backend
+cd ../backend
 python -m venv .venv
 # Windows PowerShell
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 4) Start infrastructure (if needed)
+### 4) Set up Ollama and pull model
 
-If you are using local Postgres/Redis:
+Start Ollama and pull the model configured in `.env`:
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+You can replace with another compatible local model (for example Mistral or LLaMA-family variants) as long as the env vars match.
+
+### 5) Start infrastructure
+
+If running local infra:
 
 ```bash
 docker compose up -d postgres redis
 ```
 
-If you use hosted Supabase for Postgres, you can run only Redis locally:
+If using hosted Postgres, run Redis only:
 
 ```bash
 docker compose up -d redis
 ```
 
-### 5) Run backend and frontend
-
-Backend API:
+### 6) Run backend
 
 ```bash
 cd backend
 uvicorn app.main:app --reload
 ```
 
-Frontend:
+### 7) Run frontend
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Default dev URLs:
+### 8) Open the app
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
+- Backend: `http://localhost:8000`
 
-## Running async workers
+---
 
-The app can fall back to inline execution in some paths, but for realistic async behavior run workers.
+## 9. Future Improvements
 
-Typical local pattern:
+- Add queue observability dashboard and workflow tracing.
+- Introduce retry/backoff policies per workflow node and model call.
+- Expand agent toolset for richer research and content grounding.
+- Add role-based permissions and team collaboration workflows.
+- Improve publishing connectors and delivery guarantees.
+- Add evaluation pipelines for draft quality and factual consistency.
+- Add autoscaling worker deployment patterns for high-throughput workloads.
 
-- Keep backend API running.
-- Run worker process(es) using the same `backend/.env` values (`DATABASE_URL`, `REDIS_URL`, etc.).
+---
 
-If your team has a standard worker command in scripts/process manager, use that as source of truth.
+## 10. Conclusion
 
-## LLM provider configuration
-
-Set `LLM_PROVIDER` to one of:
-
-- `gemini`
-- `openai`
-- `ollama`
-
-Tiered model routing is controlled by `*_PRO_MODEL` and `*_FLASH_MODEL` variables in `backend/.env`.
-
-## Useful scripts and docs
-
-- `SUPABASE_SETUP.md`: full Supabase setup + migration flow
-- `supabase/scripts/reset_app_data.sql`: wipe app tables while keeping Supabase auth users
-- `backend/scripts/check_db.py`: quick DB connectivity check
-
-## Troubleshooting
-
-- **401 / token errors:** verify `SUPABASE_JWT_SECRET` matches your Supabase project JWT secret.
-- **Database SSL/connection errors:** ensure `DATABASE_URL` has valid host/password and includes SSL params for hosted DB.
-- **No background progress:** verify Redis is reachable and worker processes are running.
-- **Empty dashboard data:** ensure migrations ran on the same database referenced by `DATABASE_URL`.
-
-## Tech stack
-
-- React + TypeScript + Vite
-- FastAPI + asyncpg
-- LangGraph for agent orchestration
-- Supabase Auth + Postgres
-- Redis + Celery (task queue)
+`yeseeeooo` provides a practical blueprint for agentic content automation: a React frontend, FastAPI backend, LangGraph orchestration, LangChain agent runtime, and local Ollama inference.  
+It demonstrates how to build a developer-friendly, extensible, and production-oriented workflow where human review and automated generation work together in one system.
